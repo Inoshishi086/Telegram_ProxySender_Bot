@@ -1,11 +1,12 @@
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime
 
 DB = "proxies.db"
 
 
 def now_str():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 def get_connection():
     return sqlite3.connect(DB)
@@ -77,13 +78,36 @@ def delete_proxy(proxy_url):
 def get_best_proxy(operator, proxy_type):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    cursor = conn.execute(
-        "SELECT * FROM proxies WHERE is_active = 1 AND proxy_type = ? AND operator = ? ORDER BY ping_ms ASC LIMIT 1",
-        (proxy_type, operator)
-    )
+    query = """SELECT * FROM proxies
+               WHERE is_active = 1
+               AND (operator = ? OR operator = 'unknown')"""
+    params = [operator]
+    if proxy_type != "both":
+        query += " AND proxy_type = ?"
+        params.append(proxy_type)
+    query += " ORDER BY ping_ms ASC LIMIT 1"
+    cursor = conn.execute(query, params)
     row = cursor.fetchone()
     conn.close()
     return row
+
+
+def get_top_proxies(operator, proxy_type, limit=5):
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    query = """SELECT * FROM proxies
+               WHERE is_active = 1
+               AND (operator = ? OR operator = 'unknown')"""
+    params = [operator]
+    if proxy_type != "both":
+        query += " AND proxy_type = ?"
+        params.append(proxy_type)
+    query += " ORDER BY ping_ms ASC LIMIT ?"
+    params.append(limit)
+    cursor = conn.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
 
 
 def get_all_active_proxies(limit=10):
@@ -96,6 +120,7 @@ def get_all_active_proxies(limit=10):
     rows = cursor.fetchall()
     conn.close()
     return rows
+
 
 def increment_fail_count(proxy_url):
     timestamp = now_str()
