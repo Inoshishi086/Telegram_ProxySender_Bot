@@ -49,7 +49,7 @@ def update_ping(proxy_url, ping_ms):
     timestamp = now_str()
     conn = get_connection()
     conn.execute(
-        "UPDATE proxies SET ping_ms = ?, last_checked = ? WHERE proxy_url = ?",
+        "UPDATE proxies SET ping_ms = ?, fail_count = 0, last_checked = ? WHERE proxy_url = ?",
         (ping_ms, timestamp, proxy_url)
     )
     conn.commit()
@@ -96,3 +96,13 @@ def get_all_active_proxies(limit=10):
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+def increment_fail_count(proxy_url):
+    timestamp = now_str()
+    conn = get_connection()
+    conn.execute(
+        "UPDATE proxies SET fail_count = fail_count + 1, last_checked = ? WHERE proxy_url = ?",
+        (timestamp, proxy_url)
+    )
+    conn.commit()
+    conn.close()
